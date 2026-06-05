@@ -3,6 +3,7 @@
 
 import { gameData } from './player_data.js';
 import { initTime, setSpeed } from './time.js';
+import { attachVehicleWindow } from './vehicle_window.js';
 
 function updateMoneyDisplay(moneyElement) {
   moneyElement.textContent = `€ ${gameData.money.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -36,11 +37,41 @@ export function initializeUI() {
   initTime(dateValue, timeValue, { updateDateDisplay, updateTimeDisplay });
 
   // Setup navigation buttons
+  function closeModal() {
+    const existing = document.querySelector('.app-modal');
+    if (existing) existing.remove();
+  }
+
+  function openNavWindow(title) {
+    closeModal();
+    const modal = document.createElement('div');
+    modal.className = 'app-modal';
+    modal.innerHTML = `
+      <div class="modal-overlay"></div>
+      <div class="modal-window">
+        <header>
+          <h3>${title}</h3>
+          <button class="modal-close" aria-label="Schließen">&times;</button>
+        </header>
+        <div class="modal-body">
+          <p>${title}-Bereich kommt bald!</p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('.modal-close').addEventListener('click', closeModal);
+    modal.querySelector('.modal-overlay').addEventListener('click', closeModal);
+    // If vehicles window, attach special controls
+    if (title === 'Fahrzeuge') {
+      attachVehicleWindow(modal);
+    }
+  }
+
   navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const label = btn.textContent;
       console.log(`Navigiert zu: ${label}`);
-      alert(`${label}-Bereich kommt bald!`);
+      openNavWindow(label);
     });
   });
 
