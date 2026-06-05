@@ -108,6 +108,30 @@ body {
   font-weight: 600;
 }
 
+/* Time controls (pause / speed) */
+.time-controls {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.time-btn {
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.time-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
 .panel-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;

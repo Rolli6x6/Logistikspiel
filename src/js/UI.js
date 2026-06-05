@@ -1,15 +1,39 @@
 // UI.js
 // Verwaltung des Benutzeroberflächen-Renderings.
 
-import { initializePlayerData } from './player_data.js';
+import { gameData } from './player_data.js';
+import { initTime, setSpeed } from './time.js';
+
+function updateMoneyDisplay(moneyElement) {
+  moneyElement.textContent = `€ ${gameData.money.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function updateDateDisplay(dateElement) {
+  const day = String(gameData.dateTime.getDate()).padStart(2, '0');
+  const month = String(gameData.dateTime.getMonth() + 1).padStart(2, '0');
+  const year = gameData.dateTime.getFullYear();
+  dateElement.textContent = `${day}.${month}.${year}`;
+}
+
+function updateTimeDisplay(timeElement) {
+  const hours = String(gameData.dateTime.getHours()).padStart(2, '0');
+  const minutes = String(gameData.dateTime.getMinutes()).padStart(2, '0');
+  timeElement.textContent = `${hours}:${minutes}`;
+}
 
 export function initializeUI() {
   const moneyValue = document.getElementById('moneyValue');
   const dateValue = document.getElementById('dateValue');
+  const timeValue = document.getElementById('timeValue');
   const navButtons = document.querySelectorAll('.nav-btn');
 
-  // Initialize player data display
-  initializePlayerData(moneyValue, dateValue);
+  // Initialize display values
+  updateMoneyDisplay(moneyValue);
+  updateDateDisplay(dateValue);
+  updateTimeDisplay(timeValue);
+
+  // Initialize time with display callbacks
+  initTime(dateValue, timeValue, { updateDateDisplay, updateTimeDisplay });
 
   // Setup navigation buttons
   navButtons.forEach(btn => {
@@ -19,4 +43,26 @@ export function initializeUI() {
       alert(`${label}-Bereich kommt bald!`);
     });
   });
+
+  // Time control buttons (Pause, x1, x2, x5, x10)
+  const btnPause = document.getElementById('timePause');
+  const btn1 = document.getElementById('time1');
+  const btn2 = document.getElementById('time2');
+  const btn5 = document.getElementById('time5');
+  const btn10 = document.getElementById('time10');
+
+  function setActiveButton(el) {
+    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+    if (el) el.classList.add('active');
+  }
+
+  if (btnPause) btnPause.addEventListener('click', () => { setSpeed(0); setActiveButton(btnPause); });
+  if (btn1) btn1.addEventListener('click', () => { setSpeed(1); setActiveButton(btn1); });
+  if (btn2) btn2.addEventListener('click', () => { setSpeed(2); setActiveButton(btn2); });
+  if (btn5) btn5.addEventListener('click', () => { setSpeed(5); setActiveButton(btn5); });
+  if (btn10) btn10.addEventListener('click', () => { setSpeed(10); setActiveButton(btn10); });
+
+  // Start paused
+  setSpeed(0);
+  setActiveButton(btnPause);
 }
