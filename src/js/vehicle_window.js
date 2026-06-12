@@ -101,8 +101,13 @@ function createOwnedVehicleItem(vehicle) {
 	const li = document.createElement('li');
 	li.innerHTML = `
 		<div class="owned-item">
-			<strong>${vehicle.name}</strong>
-			${renderSpecGroups(vehicle)}
+			<div class="owned-info">
+				<strong>${vehicle.name}</strong>
+				${renderSpecGroups(vehicle)}
+			</div>
+			<div>
+				<button class="sell-btn" data-owned-i-d="${vehicle.ownedID}">Verkaufen</button>
+			</div>
 		</div>`;
 	return li;
 }
@@ -121,6 +126,15 @@ function createMarketItem(vehicle) {
 			</div>
 		</div>`;
 	return item;
+}
+
+function sellOwnedVehicle(vehicle, btnGarage) {
+	gameData.money += vehicle.preis;
+	gameData.ownedVehicles = gameData.ownedVehicles.filter((v) => v.ownedID !== vehicle.ownedID);
+
+	updateMoneyDisplay();
+	showToast(`Du hast ${vehicle.name} verkauft.`, 'success');
+	btnGarage.click();
 }
 
 function purchaseMarketVehicle(vehicle, btnGarage) {
@@ -146,6 +160,10 @@ function createOwnedVehicle(vehicle) {
         kilometerstand: 0,
         kaufdatum: dateValue.textContent || '',
     };
+}
+
+function findOwnedVehicle(ownedID) {
+	return (gameData.ownedVehicles || []).find(v => v.ownedID === ownedID) || null;
 }
 
 export function attachVehicleWindow(modal) {
@@ -184,10 +202,9 @@ export function attachVehicleWindow(modal) {
 			return;
 		}
 
-		const ul = document.createElement('ul');
-		ul.id = 'ownedList';
-		sorted.forEach((vehicle) => ul.appendChild(createOwnedVehicleItem(vehicle)));
-		container.appendChild(ul);
+		sorted.forEach((vehicle) => 
+			container.appendChild(createOwnedVehicleItem(vehicle))
+	);
 	}
 
 	function renderGarage(initialCategory = null) {
@@ -218,6 +235,17 @@ export function attachVehicleWindow(modal) {
 
 		renderCategoryButtons(categoryControls, initialCategory, handleCategorySelect);
 		renderOwnedVehiclesList(garageList, initialCategory);
+
+		garageList.addEventListener('click', (event) => {
+			const btn = event.target.closest('.sell-btn');
+			if (!btn) return;
+			const sellVehicle = findOwnedVehicle(btn.dataset.ownedID);
+			if (!sellVehicle) {
+				showToast('Fahrzeug nicht gefunden', 'error');
+				return;
+			}
+			sellOwnedVehicle(sellVehicle, btnGarage);
+		});
 	}
 
 	function renderCategoryButtons(container, selectedCategory, onSelect) {
@@ -250,18 +278,9 @@ export function attachVehicleWindow(modal) {
 			return;
 		}
 
-		sorted.forEach((vehicle) => {
-			const item = createMarketItem(vehicle);
-			item.querySelector('.buy-btn').addEventListener('click', () => {
-				const offer = findMarketVehicle(vehicle.id);
-				if (!offer) {
-					showToast('Angebot nicht gefunden', 'error');
-					return;
-				}
-				purchaseMarketVehicle(offer, btnGarage);
-			});
-			container.appendChild(item);
-		});
+		sorted.forEach((vehicle) => 
+			container.appendChild(createMarketItem(vehicle))
+		);
 	}
 
 	function renderDealer(initialCategory = null) {
@@ -282,6 +301,18 @@ export function attachVehicleWindow(modal) {
 
 		renderCategoryButtons(categoryControls, initialCategory, handleCategorySelect);
 		renderMarketList(marketList, initialCategory, btnGarage);
+
+		marketList.addEventListener('click', (event) => {
+			const btn = event.target.closest('.buy-btn');
+			if (!btn) return;
+			const offer = findMarketVehicle(btn.dataset.id);
+			if (!offer) {
+				showToast('Angebot nicht gefunden', 'error');
+				return;
+			}
+			purchaseMarketVehicle(offer, btnGarage);
+		});
+
 	}
 
 	btnGarage.addEventListener('click', () => {
