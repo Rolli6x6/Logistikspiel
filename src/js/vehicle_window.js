@@ -3,32 +3,9 @@
 
 import { gameData } from './player_data.js';
 import { findMarketVehicle, Kategorien, listMarketByCategory, vehicleDataConfig } from './vehicle_data.js';
+import { updateMoneyDisplay, showToast } from './UI.js';
 
 const categoryOrder = new Map(Kategorien.map((category, index) => [category, index]));
-
-function ensureToastContainer() {
-	let container = document.getElementById('toastContainer');
-	if (!container) {
-		container = document.createElement('div');
-		container.id = 'toastContainer';
-		document.body.appendChild(container);
-	}
-	return container;
-}
-
-function showToast(message, type = 'info') {
-	const container = ensureToastContainer();
-	const toast = document.createElement('div');
-	toast.className = `toast ${type}`;
-	toast.textContent = message;
-	container.appendChild(toast);
-
-	setTimeout(() => toast.classList.add('visible'), 10);
-	setTimeout(() => {
-		toast.classList.remove('visible');
-		setTimeout(() => toast.remove(), 250);
-	}, 5000);
-}
 
 function buildVehicleSpecGroups(vehicle) {
     const groups = {};
@@ -87,16 +64,6 @@ function sortByName(list) {
 	return list.slice().sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
 }
 
-function updateMoneyDisplay() {
-	const moneyEl = document.getElementById('moneyValue');
-	if (moneyEl) {
-		moneyEl.textContent = `€ ${gameData.money.toLocaleString('de-DE', {
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
-		})}`;
-	}
-}
-
 function createOwnedVehicleItem(vehicle) {
 	const li = document.createElement('li');
 	li.innerHTML = `
@@ -148,8 +115,14 @@ function purchaseMarketVehicle(vehicle, btnGarage) {
 	gameData.ownedVehicles.push(createOwnedVehicle(vehicle));
 
 	updateMoneyDisplay();
+	gameData.expenses.push({ 
+		wert: vehicle.preis, 
+		beschreibung: `Kauf: ${vehicle.name}`,
+		datum: dateValue.textContent || '',
+		uhrzeit: timeValue.textContent || ''
+	});
 	showToast(`Du hast ${vehicle.name} gekauft.`, 'success');
-    console.log(gameData.ownedVehicles);
+    console.log(gameData.expenses);
 	btnGarage.click();
 }
 
@@ -158,7 +131,7 @@ function createOwnedVehicle(vehicle) {
         ownedID: crypto.randomUUID(),
         ...vehicle,
         kilometerstand: 0,
-        kaufdatum: dateValue.textContent || '',
+        kaufdatum: dateValue.textContent || ''
     };
 }
 

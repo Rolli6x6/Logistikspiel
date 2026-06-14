@@ -3,9 +3,11 @@
 
 import { gameData } from './player_data.js';
 import { initTime, setSpeed } from './time.js';
+import { attachCompanyWindow } from './company_window.js';
 import { attachVehicleWindow } from './vehicle_window.js';
 
-function updateMoneyDisplay(moneyElement) {
+export function updateMoneyDisplay() {
+  const moneyElement = document.getElementById('moneyValue');
   moneyElement.textContent = `€ ${gameData.money.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -61,9 +63,12 @@ export function initializeUI() {
     document.body.appendChild(modal);
     modal.querySelector('.modal-close').addEventListener('click', closeModal);
     modal.querySelector('.modal-overlay').addEventListener('click', closeModal);
-    // If vehicles window, attach special controls
+    
     if (title === 'Fahrzeuge') {
       attachVehicleWindow(modal);
+    }
+    if (title === 'Firma') {
+      attachCompanyWindow(modal);
     }
   }
 
@@ -96,4 +101,28 @@ export function initializeUI() {
   // Start paused
   setSpeed(0);
   setActiveButton(btnPause);
+}
+
+export function ensureToastContainer() {
+	let container = document.getElementById('toastContainer');
+	if (!container) {
+		container = document.createElement('div');
+		container.id = 'toastContainer';
+		document.body.appendChild(container);
+	}
+	return container;
+}
+
+export function showToast(message, type = 'info') {
+	const container = ensureToastContainer();
+	const toast = document.createElement('div');
+	toast.className = `toast ${type}`;
+	toast.textContent = message;
+	container.appendChild(toast);
+
+	setTimeout(() => toast.classList.add('visible'), 10);
+	setTimeout(() => {
+		toast.classList.remove('visible');
+		setTimeout(() => toast.remove(), 250);
+	}, 5000);
 }
