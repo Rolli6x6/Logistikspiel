@@ -14,24 +14,74 @@ function renderFinancesOverview() {
     const content = document.getElementById('financesContent');
     content.innerHTML = `
         <div class="finance-list">
-            <h5>Einnahmen</h5>
-            <h5>Ausgaben</h5>
-                <div class="finance-expenses">
-                    ${gameData.expenses.length ? gameData.expenses.map(expense => `
-                        <div class="finance-entry">
-                            <div>${expense.beschreibung}</div>
-                            <div>€ ${expense.wert.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                            <div>${expense.datum}</div>
-                            <div>${expense.uhrzeit}</div>
-                        </div>
-                    `).join('') : '<div>Keine Ausgaben bisher.</div>'
+            <table class="finance-table">
+                <thead>
+                    <tr class="finance-title">
+                        <th colspan="4">Einnahmen</th>
+                    </tr>
+                    <tr class="finance-header">
+                        <th width="40%">Beschreibung</th>
+                        <th width="20%">Datum</th>
+                        <th width="20%">Uhrzeit</th>
+                        <th width="20%">Wert</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${gameData.income.length ? gameData.income.map(income => `
+                            <tr class="finance-entry">
+                                <td>${income.beschreibung}</td>
+                                <td>${income.datum}</td>
+                                <td>${income.uhrzeit}</td>
+                                <td>${income.wert.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                            </tr>
+                        `).join('') : '<tr><td colspan="4">Keine Einnahmen bisher.</td></tr>'
                     }
-                </div>
+                    <tr class="finance-summary">
+                        <td colspan="3">Summe Einnahmen:</td>
+                        <td>${gameData.income.reduce((sum, entry) => sum + entry.wert, 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                    </tr>
+                </tbody>
+
+                <thead>
+                    <tr class="finance-title">
+                        <th colspan="4">Ausgaben</th>
+                    </tr>
+                    <tr class="finance-header">
+                        <th width="40%">Beschreibung</th>
+                        <th width="20%">Datum</th>
+                        <th width="20%">Uhrzeit</th>
+                        <th width="20%">Wert</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${gameData.expenses.length ? gameData.expenses.map(expense => `
+                            <tr class="finance-entry">
+                                <td>${expense.beschreibung}</td>
+                                <td>${expense.datum}</td>
+                                <td>${expense.uhrzeit}</td>
+                                <td>${expense.wert.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                            </tr>
+                        `).join('') : '<tr><td colspan="4">Keine Ausgaben bisher.</td></tr>'
+                    }
+                    <tr class="finance-summary">
+                        <td colspan="3">Summe Ausgaben:</td>
+                        <td>${gameData.expenses.reduce((sum, entry) => sum + entry.wert, 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     `;
 }
 
 function renderFinancesBank() {
+    const content = document.getElementById('financesContent');
+    content.innerHTML = `
+        <div class="bank-info">
+            <h1>Willkommen bei der Bank</h1>
+            <p>Hier können Sie Kredite aufnehmen, zurückzahlen und Ihre Kontoinformationen verwalten.</p>
+            <p><strong>Kontostand:</strong> ${gameData.money.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</p>
+        </div>
+    `;
 }
 
 export function attachCompanyWindow(modal) {
@@ -39,11 +89,11 @@ export function attachCompanyWindow(modal) {
     if (!body) return;
 
     body.innerHTML = `
-        <div class="company-window-controls">
-            <button id="cwLocations" class="cw-btn active">Standorte</button>
-            <button id="cwFinances" class="cw-btn">Finanzen</button>
+        <div class="window-controls">
+            <button id="cwLocations" class="tab-controls cw-btn active">Standorte</button>
+            <button id="cwFinances" class="tab-controls cw-btn">Finanzen</button>
         </div>
-        <div id="cwContent" class="cw-content"></div>
+        <div id="cwContent" class="window-content"></div>
     `;
 
     const btnLocations = modal.querySelector('#cwLocations');
@@ -68,10 +118,9 @@ export function attachCompanyWindow(modal) {
 
     function renderLocations() {
         content.innerHTML = `
-            <h4>Standorte</h4>
             <div class="location-controls">
-                <button data-tab="garageOwned" class="location-btn active">Eigene Garagen</button>
-                <button data-tab="warehouseOwned" class="location-btn">Eigene Lager</button>
+                <button data-tab="garageOwned" class="category-btn location-btn active">Eigene Garagen</button>
+                <button data-tab="warehouseOwned" class="category-btn location-btn">Eigene Lager</button>
             </div>
             <div id="locationContent"></div>
         `;
@@ -84,10 +133,9 @@ export function attachCompanyWindow(modal) {
 
     function renderFinances() {
         content.innerHTML = `
-            <h4>Finanzen</h4>
             <div class="finances-controls">
-                <button data-tab="financesOverview" class="finances-btn active">Übersicht</button>
-                <button data-tab="financesBank" class="finances-btn">Bank</button>
+                <button data-tab="financesOverview" class="category-btn finances-btn active">Übersicht</button>
+                <button data-tab="financesBank" class="category-btn finances-btn">Bank</button>
             </div>
             <div id="financesContent"></div>
         `;

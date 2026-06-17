@@ -100,6 +100,12 @@ function sellOwnedVehicle(vehicle, btnGarage) {
 	gameData.ownedVehicles = gameData.ownedVehicles.filter((v) => v.ownedID !== vehicle.ownedID);
 
 	updateMoneyDisplay();
+	gameData.income.push({ 
+		wert: vehicle.preis, 
+		beschreibung: `Verkauf: ${vehicle.name}`,
+		datum: dateValue.textContent || '',
+		uhrzeit: timeValue.textContent || ''
+	});
 	showToast(`Du hast ${vehicle.name} verkauft.`, 'success');
 	btnGarage.click();
 }
@@ -144,11 +150,11 @@ export function attachVehicleWindow(modal) {
 	if (!body) return;
 
 	body.innerHTML = `
-		<div class="vehicle-window-controls">
-			<button id="vwGarage" class="vw-btn active">Garage</button>
-			<button id="vwDealer" class="vw-btn">Händler</button>
+		<div class="window-controls">
+			<button id="vwGarage" class="tab-controls vw-btn active">Garage</button>
+			<button id="vwDealer" class="tab-controls vw-btn">Händler</button>
 		</div>
-		<div id="vwContent" class="vw-content"></div>
+		<div id="vwContent" class="window-content"></div>
 	`;
 
 	const btnGarage = modal.querySelector('#vwGarage');
@@ -185,14 +191,12 @@ export function attachVehicleWindow(modal) {
 
 		if (ownedVehicles.length === 0) {
 			content.innerHTML = `
-				<h4>Garage</h4>
 				<p>Du besitzt noch keine Fahrzeuge.</p>
 			`;
 			return;
 		}
 
 		content.innerHTML = `
-			<h4>Garage</h4>
 			<div id="categoryControls" class="category-controls"></div>
 			<div id="garageList"></div>
 		`;
@@ -258,7 +262,6 @@ export function attachVehicleWindow(modal) {
 
 	function renderDealer(initialCategory = null) {
 		content.innerHTML = `
-			<h4>Händler</h4>
 			<div id="categoryControls" class="category-controls"></div>
 			<div id="marketList"></div>
 		`;
