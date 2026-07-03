@@ -264,14 +264,14 @@ body {
   gap: 0.5rem;
 } 
 
-.finance-table {
+.finance-table,.loan-table {
   padding: 0.5rem;
   width: 100%;
   border: 0px;
   border-collapse: collapse;
 }
 
-.finance-header {
+.finance-header, .loan-header {
   font-size: larger;
 }
 

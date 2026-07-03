@@ -2,7 +2,8 @@
 // Fenster für Unternehmensinformationen und -aktionen.
 
 import { gameData } from './player_data.js';
-import { showToast } from './UI.js';
+import { calculateLoan } from './finance_calculation.js';
+import { showToast } from './UI.js'
 
 function renderGarageLocations() {
 }
@@ -81,8 +82,68 @@ function renderFinancesBank() {
             <p>Hier können Sie Kredite aufnehmen, zurückzahlen und Ihre Kontoinformationen verwalten.</p>
             <p><strong>Kontostand:</strong> ${gameData.money.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</p>
         </div>
+        <div class="bank-loans">
+            <table class="loan-table">
+                <thead>
+                    <tr class="loan-title">
+                        <th colspan="5"><h2>Kredite</h2></th>
+                    </tr>
+                    <tr class="loan-header">
+                        <th width="20%">Datum</th>
+                        <th width="20%">Summe</th>
+                        <th width="20%">Restschuld</th>
+                        <th width="20%">monatliche Rate</th>
+                        <th width="20%">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${gameData.loans.length ? gameData.loans.map(loan => `
+                            <tr class="loan-entry">
+                                <td>${loan.datum}</td>
+                                <td>${loan.summe.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                <td>${loan.restschuld.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                <td>${loan.monatlicheRate.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                <td><button class="repay-loan-btn" data-loan-id="${loan.id}">Rückzahlung</button></td>
+                            </tr>
+                        `).join('') : '<tr><td colspan="5">Keine Kredite vorhanden.</td></tr>'
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="loan-actions">
+            <h2>Kredit aufnehmen</h2>
+            <p>Sie können einen neuen Kredit aufnehmen, um Ihr Unternehmen zu finanzieren. Bitte beachten Sie die Rückzahlungsbedingungen.</p>
+            <p>Kreditbetrag: <input type="number" id="loanAmount" min="1000" step="1000" placeholder="Betrag in €"></p>
+            <p>Laufzeit: <input type="number" id="loanDuration" min="1" max="120" step="1" placeholder="Laufzeit in Monaten"></p>
+            <button id="calculateLoanBtn" class="category-btn">Kredit berechnen</button>
+            <div id="loanCalculationResult"></div>
+        </div>
     `;
-}
+
+    const loanCalculation = document.getElementById('loanCalculationResult');
+    let interestRate = 5;
+    let loanCalculationResult = null;
+
+    document.getElementById('calculateLoanBtn').addEventListener('click', () => {
+        const loanAmount = parseFloat(document.getElementById('loanAmount').value);
+        const loanDuration = parseInt(document.getElementById('loanDuration').value);
+        loanCalculationResult = calculateLoan(interestRate, loanAmount, loanDuration);
+        renderLoanCalculation();
+        console.log(loanCalculationResult);
+    });
+
+    function renderLoanCalculation() {
+        
+        loanCalculation.innerHTML = `
+            Beantragter Kredit: ${loanCalculationResult.loanAmount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € <br>
+            Laufzeit: ${loanCalculationResult.loanDuration} Monate <br>
+            Zinssatz: ${loanCalculationResult.interestRate}% <br>
+            Monatliche Rate: ${loanCalculationResult.monthlyPayment.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € <br>
+            Gesamtkosten: ${loanCalculationResult.totalPayment.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € <br>
+            Gesamtzins: ${loanCalculationResult.totalInterest.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+        `;
+    };
+} 
 
 export function attachCompanyWindow(modal) {
     const body = modal.querySelector('.modal-body');

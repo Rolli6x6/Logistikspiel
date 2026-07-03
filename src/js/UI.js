@@ -75,7 +75,6 @@ export function initializeUI() {
   navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const label = btn.textContent;
-      console.log(`Navigiert zu: ${label}`);
       openNavWindow(label);
     });
   });
