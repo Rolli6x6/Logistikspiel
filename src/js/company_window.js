@@ -2,8 +2,8 @@
 // Fenster für Unternehmensinformationen und -aktionen.
 
 import { gameData } from './player_data.js';
-import { calculateLoan } from './finance_calculation.js';
-import { showToast } from './UI.js'
+import { calculateLoan, calculateRestLoan } from './finance_calculation.js';
+import { showToast, updateMoneyDisplay } from './UI.js'
 
 function renderGarageLocations() {
 }
@@ -89,23 +89,25 @@ function renderFinancesBank() {
                         <th colspan="5"><h2>Kredite</h2></th>
                     </tr>
                     <tr class="loan-header">
-                        <th width="20%">Datum</th>
+                        <th width="10%">Datum</th>
                         <th width="20%">Summe</th>
                         <th width="20%">Restschuld</th>
                         <th width="20%">monatliche Rate</th>
-                        <th width="20%">Aktionen</th>
+                        <th width="20%">Raten gezahlt</th>
+                        <th width="10%">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${gameData.loans.length ? gameData.loans.map(loan => `
                             <tr class="loan-entry">
-                                <td>${loan.datum}</td>
-                                <td>${loan.summe.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
-                                <td>${loan.restschuld.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
-                                <td>${loan.monatlicheRate.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
-                                <td><button class="repay-loan-btn" data-loan-id="${loan.id}">Rückzahlung</button></td>
+                                <td>${loan.date}</td>
+                                <td>${loan.loanAmount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                <td>${loan.restloan.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                <td>${loan.monthlyPayment.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                <td>${loan.ratesPaid} von ${loan.loanDuration}</td>
+                                <td><button class="repay-loan-btn" data-loan-id="${loan.Id}">Rückzahlung</button></td>
                             </tr>
-                        `).join('') : '<tr><td colspan="5">Keine Kredite vorhanden.</td></tr>'
+                        `).join('') : '<tr><td colspan="7">Keine Kredite vorhanden.</td></tr>'
                     }
                 </tbody>
             </table>
@@ -113,36 +115,163 @@ function renderFinancesBank() {
         <div class="loan-actions">
             <h2>Kredit aufnehmen</h2>
             <p>Sie können einen neuen Kredit aufnehmen, um Ihr Unternehmen zu finanzieren. Bitte beachten Sie die Rückzahlungsbedingungen.</p>
-            <p>Kreditbetrag: <input type="number" id="loanAmount" min="1000" step="1000" placeholder="Betrag in €"></p>
-            <p>Laufzeit: <input type="number" id="loanDuration" min="1" max="120" step="1" placeholder="Laufzeit in Monaten"></p>
+            <p>Kreditbetrag in €: <input type="number" id="loanAmount" min="1000" step="1000" placeholder="Betrag in €"></p>
+            <p>Laufzeit in Monaten: <input type="number" id="loanDuration" min="1" step="1" placeholder="Laufzeit in Monaten"></p>
             <button id="calculateLoanBtn" class="category-btn">Kredit berechnen</button>
-            <div id="loanCalculationResult"></div>
+            <div id="loanCalculationDetails"></div>
         </div>
     `;
 
-    const loanCalculation = document.getElementById('loanCalculationResult');
-    let interestRate = 5;
+    const repayButtons = document.querySelector('.loan-table');
     let loanCalculationResult = null;
+    let restLoanCalculationResult = new Map();
+    let restLoanCalculationSum = null;
+    let totalPaymentSum = null;
+
+    repayButtons.addEventListener('click', (event) => {
+        const btn = event.target.closest('.repay-loan-btn');
+        if (btn) {
+            const loanId = btn.dataset.loanId;
+            const loan = gameData.loans.find(l => l.Id === loanId);
+            if (!loan) {
+                showToast('Kredit nicht gefunden', 'error');
+                return;
+            }
+
+            const row = btn.closest('tr');
+        
+            if (row.nextElementSibling && row.nextElementSibling.classList.contains('loan-payment-row')) {
+                return;
+            }
+
+            const paymentRow = document.createElement('tr');
+            paymentRow.className = 'loan-payment-row';
+            paymentRow.innerHTML = `
+                <td colspan="6">
+                    <p>Rückzahlungsbetrag in €: <input id="repaymentAmount-${loan.Id}" type="number" class="repayment-amount" min="1000" max="${loan.restloan}" step="1000" placeholder="Betrag in €"></p>
+                    <button class="confirm-repayment-btn category-btn" data-loan-id="${loan.Id}">Rückzahlung berechnen</button>
+                    <div id="repaymentCalculationDetails-${loan.Id}"></div>
+                </td>
+            `;
+            row.parentNode.insertBefore(paymentRow, row.nextSibling);
+            return;
+        };
+
+        const confirmBtn = event.target.closest('.confirm-repayment-btn');
+        if (confirmBtn) {
+            const loanId = confirmBtn.dataset.loanId;
+            const loan = gameData.loans.find(l => l.Id === loanId);
+            const paymentSum = parseFloat(document.getElementById(`repaymentAmount-${loan.Id}`).value);
+            if (isNaN(paymentSum) || paymentSum <= 0 || paymentSum > loan.restloan) {
+                showToast('Bitte geben Sie einen gültigen Rückzahlungsbetrag ein.', 'error');
+                return;
+            }
+            else if (paymentSum > gameData.money) {
+                showToast('Sie haben nicht genügend Geld, um diese Rückzahlung vorzunehmen.', 'error');
+                return;
+            }
+            else {
+                restLoanCalculationSum = loan.restloan - paymentSum;
+                restLoanCalculationResult.set(loan.Id, {
+                    sum: restLoanCalculationSum,
+                    newLoanDuration: calculateRestLoan(loan.interestRate, restLoanCalculationSum, loan.monthlyPayment),
+                    totalPaymentSum: paymentSum + paymentSum * (loan.interestRate - 1) / 100
+                });
+
+                console.log(restLoanCalculationResult);
+
+                const repaymentRow = document.getElementById(`repaymentCalculationDetails-${loan.Id}`);
+                repaymentRow.innerHTML = `
+                    <p>Neue Restschuld: ${restLoanCalculationResult.get(loan.Id).sum.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</p>
+                    <p>Neue Laufzeit: ${restLoanCalculationResult.get(loan.Id).newLoanDuration} Monate</p>
+                    <p>Gesamtbetrag der Rückzahlung: ${restLoanCalculationResult.get(loan.Id).totalPaymentSum.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</p>
+                    <button class="finalize-repayment-btn category-btn" data-loan-id="${loan.Id}">Rückzahlung durchführen</button>
+                `;
+            };
+        }
+
+        const finalizeBtn = event.target.closest('.finalize-repayment-btn');
+        if (finalizeBtn) {
+            const loanId = finalizeBtn.dataset.loanId;
+            const loan = gameData.loans.find(l => l.Id === loanId);
+            gameData.money -= restLoanCalculationResult.get(loan.Id).totalPaymentSum;
+            loan.restloan = restLoanCalculationResult.get(loan.Id).sum;
+            loan.loanDuration = restLoanCalculationResult.get(loan.Id).newLoanDuration;
+            loan.ratesPaid = 0;
+            updateMoneyDisplay();
+            showToast(`Rückzahlung von ${restLoanCalculationResult.get(loan.Id).totalPaymentSum.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € erfolgreich durchgeführt!`);
+            renderFinancesBank();
+            restLoanCalculationResult = null;
+            totalPaymentSum = null;
+        }
+    });
+
+    const loanCalculation = document.getElementById('loanCalculationDetails');
+    let interestRate = 5;
+    
 
     document.getElementById('calculateLoanBtn').addEventListener('click', () => {
         const loanAmount = parseFloat(document.getElementById('loanAmount').value);
         const loanDuration = parseInt(document.getElementById('loanDuration').value);
+        if (isNaN(loanAmount) || isNaN(loanDuration) || loanAmount <= 0 || loanDuration <= 0) {
+            showToast('Bitte geben Sie gültige Werte für Kreditbetrag und Laufzeit ein.', 'error');
+            return;
+        }
         loanCalculationResult = calculateLoan(interestRate, loanAmount, loanDuration);
         renderLoanCalculation();
-        console.log(loanCalculationResult);
     });
 
     function renderLoanCalculation() {
         
         loanCalculation.innerHTML = `
-            Beantragter Kredit: ${loanCalculationResult.loanAmount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € <br>
-            Laufzeit: ${loanCalculationResult.loanDuration} Monate <br>
-            Zinssatz: ${loanCalculationResult.interestRate}% <br>
-            Monatliche Rate: ${loanCalculationResult.monthlyPayment.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € <br>
-            Gesamtkosten: ${loanCalculationResult.totalPayment.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € <br>
-            Gesamtzins: ${loanCalculationResult.totalInterest.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+            <h3>Kreditberechnung</h3>
+            <p>Basierend auf den eingegebenen Daten macht die Bank folgendes Angebot:</p>
+            <table class="loan-calculation-table">
+                <tr>
+                    <td>Beantragter Kredit:</td>
+                    <td>${loanCalculationResult.loanAmount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                </tr>
+                <tr>
+                    <td>Laufzeit:</td>
+                    <td>${loanCalculationResult.loanDuration} Monate</td>
+                </tr>
+                <tr>
+                    <td>Zinssatz:</td>
+                    <td>${loanCalculationResult.interestRate}% p.a.</td>
+                </tr>
+                <tr>
+                    <td>Monatliche Rate:</td>
+                    <td>${loanCalculationResult.monthlyPayment.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                </tr>
+                <tr>
+                    <td>Gesamtkosten:</td>
+                    <td>${loanCalculationResult.totalPayment.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                </tr>
+                <tr>
+                    <td>Gesamtzins:</td>
+                    <td>${loanCalculationResult.totalInterest.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                </tr>
+            </table>
+            <button id="takeLoanBtn" class="category-btn">Kredit aufnehmen</button>
         `;
-    };
+
+        document.getElementById('takeLoanBtn').addEventListener('click', () => {
+            if (loanCalculationResult) {
+                gameData.loans.push({
+                    Id: crypto.randomUUID(),
+                    ...loanCalculationResult,
+                    date: dateValue.textContent || '',
+                    restloan: loanCalculationResult.loanAmount,
+                    ratesPaid: 0
+                });
+                gameData.money += loanCalculationResult.loanAmount;
+                updateMoneyDisplay();
+                showToast(`Kredit über ${loanCalculationResult.loanAmount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € aufgenommen!`);
+                loanCalculationResult = null;
+                renderFinancesBank();
+            }
+        });
+    }
 } 
 
 export function attachCompanyWindow(modal) {
