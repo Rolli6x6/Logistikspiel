@@ -209,6 +209,24 @@ body {
   overflow-y: auto;
 }
 
+.hidden {
+  display: none;
+}
+
+.cancel-btn {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1200;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: none;
+  background: #ef4444;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .window-controls {
   display: flex;
   gap: 0.5rem;
@@ -264,7 +282,7 @@ body {
   gap: 0.5rem;
 } 
 
-.finance-table,.loan-table {
+.finance-table, .loan-table {
   padding: 0.5rem;
   width: 100%;
   border: 0px;
@@ -275,19 +293,21 @@ body {
   font-size: larger;
 }
 
-.finance-table th {
+.finance-table th, .loan-table th {
   padding: 0.5rem;
   border-bottom: 1px solid rgb(0, 0, 0);
   text-align: center;
 }
 
-.finance-table td {
+.finance-table td, .loan-table td {
   padding: 0.5rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.5);
 }
 
 .finance-table th:not(:last-child),
-.finance-table td:not(:last-child, .finance-summary td) {
+.finance-table td:not(:last-child, .finance-summary td),
+.loan-table th:not(:last-child),
+.loan-table td:not(:last-child) {
   border-right: 1px solid rgb(0, 0, 0);
 }
 
@@ -299,6 +319,11 @@ body {
 .finance-table td:nth-child(4),
 .finance-summary td:nth-child(2) {
   text-align: right ;
+}
+
+.loan-payment-row {
+  border-left: 1px solid rgb(0, 0, 0, 0.5);
+  border-right: 1px solid rgb(0, 0, 0, 0.5);
 }
 
 .owned-item {

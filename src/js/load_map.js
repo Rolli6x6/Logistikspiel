@@ -1,7 +1,9 @@
 import { initializeRoute } from './routing.js';
+import { gameData } from './player_data.js';
 
+export let map; 
 export function initializeMap() {
-  const map = L.map('map', {
+  map = L.map('map', {
     zoomControl: false,
   }).setView([53.5511, 9.9937], 12);
 
@@ -18,4 +20,10 @@ export function initializeMap() {
   initializeRoute(map, randomRouteBtn, routeInfo);
 
   console.log('OpenStreetMap geladen.');
+}
+
+export function setGarageMarker(lat, lng) {
+  gameData.ownedGarages.forEach(garage => {
+    L.marker([garage.lat, garage.lng]).addTo(map);
+  });
 }

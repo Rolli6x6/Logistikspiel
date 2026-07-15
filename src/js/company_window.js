@@ -3,9 +3,105 @@
 
 import { gameData } from './player_data.js';
 import { calculateLoan, calculateRestLoan } from './finance_calculation.js';
+import { map, setGarageMarker } from './load_map.js';
 import { showToast, updateMoneyDisplay } from './UI.js'
 
+function selectLocation () {
+    let selectedLocation = null;
+    const changeUi = {};
+    changeUi.window = document.querySelector('.app-modal');
+    changeUi.uipanel = document.querySelector('.ui-panel');
+    changeUi.window.classList.add('hidden');
+    changeUi.uipanel.classList.add('hidden');
+
+    showToast('Bitte wählen Sie einen Standort auf der Karte aus, um die Garage zu platzieren.', 'info');
+
+    changeUi.cancelBtn = document.createElement('button');
+    changeUi.cancelBtn.textContent = 'Garagenkauf abbrechen';
+    changeUi.cancelBtn.className = 'cancel-btn';
+    changeUi.cancelBtn.addEventListener('click', () => {
+        changeUi.window.classList.remove('hidden');
+        changeUi.uipanel.classList.remove('hidden');
+        changeUi.cancelBtn.remove();
+        map.off('click');
+        let garageNameInput = document.getElementById('garageNameInputId')
+        if (garageNameInput) {
+            garageNameInput.remove();
+        }
+    });
+    document.body.appendChild(changeUi.cancelBtn);
+
+    map.on('click', (e) => {
+        selectedLocation = e.latlng;
+        selectLocationWindow(selectedLocation, changeUi);
+    })
+}
+
+function selectLocationWindow(selectedLocation, changeUi) {
+    const garageNameInput = document.createElement('div');
+    garageNameInput.className = 'app-modal';
+    garageNameInput.id = 'garageNameInputId';
+    garageNameInput.innerHTML = `
+        <div class="modal-overlay"></div>
+        <div class="modal-window">
+            <header>
+                <h3>Garage kaufen</h3>
+                <button class="modal-close" aria-label="Schließen">&times;</button>
+            </header>
+            <div class="modal-body">
+                <input type="text" id="garageNameInputText" placeholder="Name der Garage">
+                <button id="confirmGarageNameBtn" class="category-btn">Bestätigen</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(garageNameInput);
+
+    garageNameInput.querySelector('.modal-close').addEventListener('click', () => {
+        garageNameInput.remove();
+        selectedLocation = null;
+    });
+
+    document.getElementById('confirmGarageNameBtn').addEventListener('click', () => {
+        const garageName = document.getElementById('garageNameInputText').value.trim();
+        if (!garageName) {
+            showToast('Bitte geben Sie einen Namen für die Garage ein.', 'error');
+            return;
+        }
+        map.off('click');
+
+        gameData.ownedGarages.push({
+            id: crypto.randomUUID(),
+            name: garageName,
+            lat: selectedLocation.lat,
+            lng: selectedLocation.lng,
+            date: dateValue.textContent || '',
+            size: 1
+        });
+        showToast('Garage erfolgreich gekauft und Standort gesetzt!', 'success');
+        updateMoneyDisplay();
+        renderGarageLocations();
+        setGarageMarker(selectedLocation.lat, selectedLocation.lng);
+        console.log(gameData.ownedGarages);
+        changeUi.cancelBtn.remove();
+        garageNameInput.remove();
+        changeUi.window.classList.remove('hidden');
+        changeUi.uipanel.classList.remove('hidden');
+    })
+}
+
 function renderGarageLocations() {
+    const content = document.getElementById('locationContent');
+    content.innerHTML = `
+        <div class="garage-info">
+            <h1>Eigene Garagen</h1>
+            <p>Hier können Sie Ihre Garagenstandorte verwalten und neue Garagen kaufen.</p>
+        </div>
+        <button id="setGarageLocationBtn" class="category-btn">Garagenstandort setzen</button>
+    `;
+
+    document.getElementById('setGarageLocationBtn').addEventListener('click', () => {
+        selectLocation();
+    });
 }
 
 function renderWarehouseLocations() {
@@ -86,7 +182,7 @@ function renderFinancesBank() {
             <table class="loan-table">
                 <thead>
                     <tr class="loan-title">
-                        <th colspan="5"><h2>Kredite</h2></th>
+                        <th colspan="6"><h2>Kredite</h2></th>
                     </tr>
                     <tr class="loan-header">
                         <th width="10%">Datum</th>
@@ -107,7 +203,7 @@ function renderFinancesBank() {
                                 <td>${loan.ratesPaid} von ${loan.loanDuration}</td>
                                 <td><button class="repay-loan-btn" data-loan-id="${loan.Id}">Rückzahlung</button></td>
                             </tr>
-                        `).join('') : '<tr><td colspan="7">Keine Kredite vorhanden.</td></tr>'
+                        `).join('') : '<tr><td colspan="6">Keine Kredite vorhanden.</td></tr>'
                     }
                 </tbody>
             </table>
@@ -201,8 +297,7 @@ function renderFinancesBank() {
             updateMoneyDisplay();
             showToast(`Rückzahlung von ${restLoanCalculationResult.get(loan.Id).totalPaymentSum.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € erfolgreich durchgeführt!`);
             renderFinancesBank();
-            restLoanCalculationResult = null;
-            totalPaymentSum = null;
+            restLoanCalculationResult.delete(loan.Id);
         }
     });
 
@@ -319,6 +414,8 @@ export function attachCompanyWindow(modal) {
             garageOwned: renderGarageLocations,
             warehouseOwned: renderWarehouseLocations
         });
+
+        renderGarageLocations();
     }
 
     function renderFinances() {
@@ -334,6 +431,8 @@ export function attachCompanyWindow(modal) {
             financesOverview: renderFinancesOverview,
             financesBank: renderFinancesBank
         });
+
+        renderFinancesOverview();
     }
 
     btnLocations.addEventListener('click', () => {
@@ -345,4 +444,6 @@ export function attachCompanyWindow(modal) {
         setActiveTab(btnFinances, '.cw-btn');
         renderFinances();
     });
+
+    renderLocations();
 }
