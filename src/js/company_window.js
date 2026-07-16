@@ -24,68 +24,97 @@ function selectLocation () {
         changeUi.uipanel.classList.remove('hidden');
         changeUi.cancelBtn.remove();
         map.off('click');
-        let garageNameInput = document.getElementById('garageNameInputId')
-        if (garageNameInput) {
-            garageNameInput.remove();
+        let locationConfigInput = document.getElementById('garageNameInputId')
+        if (locationConfigInput) {
+            locationConfigInput.remove();
         }
     });
     document.body.appendChild(changeUi.cancelBtn);
 
-    map.on('click', (e) => {
+    map.on('click', async (e) => {
         selectedLocation = e.latlng;
-        selectLocationWindow(selectedLocation, changeUi);
+        const locationConfigResult = await renderLocationConfigWindow();
+        if (!locationConfigResult) return;
+        else {
+            map.off('click')
+            console.log(locationConfigResult)
+            gameData.ownedLocations.push({
+                id: crypto.randomUUID(),
+                name: locationConfigResult.name,
+                position: {
+                    lat: selectedLocation.lat,
+                    lng: selectedLocation.lng
+                }
+            });
+            changeUi.cancelBtn.remove();
+            changeUi.window.classList.remove('hidden');
+            changeUi.uipanel.classList.remove('hidden');
+            console.log(gameData.ownedLocations)
+        }
     })
 }
 
-function selectLocationWindow(selectedLocation, changeUi) {
-    const garageNameInput = document.createElement('div');
-    garageNameInput.className = 'app-modal';
-    garageNameInput.id = 'garageNameInputId';
-    garageNameInput.innerHTML = `
+function renderLocationConfigWindow() {
+    return new Promise((resolve) => {
+        const locationConfigInput = document.createElement('div');
+        locationConfigInput.className = 'app-modal';
+        locationConfigInput.id = 'garageNameInputId';
+        locationConfigInput.innerHTML = `
         <div class="modal-overlay"></div>
         <div class="modal-window">
             <header>
-                <h3>Garage kaufen</h3>
+                <h3>Standort anpassen</h3>
                 <button class="modal-close" aria-label="Schließen">&times;</button>
             </header>
             <div class="modal-body">
-                <input type="text" id="garageNameInputText" placeholder="Name der Garage">
+                <p> Hier kannst du deinen Standort konfigurieren. Du kannst ihn später jederzeit erweitern. </p>
+                <table>
+                    <tr>
+                        <td width="40%">Name: </td>
+                        <td width="60%"><input type="text" id="garageNameInputText" placeholder="Name des Standorts"></td>
+                    </tr>
+                    <tr>
+                        <td>Anzahl Parkplätze (klein): </td>
+                        <td><input type="number" id="numberParkingSmall" min="0" max="100" step="1" placeholder="Parkplätze (klein)"></td>
+                    </tr>
+                    <tr>
+                        <td>Anzahl Parkplätze (mittel): </td>
+                        <td><input type="number" id="numberParkingMedium" min="0" max="100" step="1" placeholder="Parkplätze (mittel)"></td>
+                    </tr>
+                    <tr>
+                        <td>Anzahl Parkplätze (groß): </td>
+                        <td><input type="number" id="numberParkingBig" min="0" max="100" step="1" placeholder="Parkplätze (groß)"></td>
+                    </tr>
+                </table>
                 <button id="confirmGarageNameBtn" class="category-btn">Bestätigen</button>
             </div>
         </div>
-    `;
-    document.body.appendChild(garageNameInput);
+        `;
+        document.body.appendChild(locationConfigInput);
 
-    garageNameInput.querySelector('.modal-close').addEventListener('click', () => {
-        garageNameInput.remove();
-        selectedLocation = null;
-    });
-
-    document.getElementById('confirmGarageNameBtn').addEventListener('click', () => {
-        const garageName = document.getElementById('garageNameInputText').value.trim();
-        if (!garageName) {
-            showToast('Bitte geben Sie einen Namen für die Garage ein.', 'error');
-            return;
-        }
-        map.off('click');
-
-        gameData.ownedGarages.push({
-            id: crypto.randomUUID(),
-            name: garageName,
-            lat: selectedLocation.lat,
-            lng: selectedLocation.lng,
-            date: dateValue.textContent || '',
-            size: 1
+        locationConfigInput.querySelector('.modal-close').addEventListener('click', () => {
+            locationConfigInput.remove();
+            resolve(null)
         });
-        showToast('Garage erfolgreich gekauft und Standort gesetzt!', 'success');
-        updateMoneyDisplay();
-        renderGarageLocations();
-        setGarageMarker(selectedLocation.lat, selectedLocation.lng);
-        console.log(gameData.ownedGarages);
-        changeUi.cancelBtn.remove();
-        garageNameInput.remove();
-        changeUi.window.classList.remove('hidden');
-        changeUi.uipanel.classList.remove('hidden');
+
+        document.getElementById('confirmGarageNameBtn').addEventListener('click', () => {
+            let locationConfigResult;
+            const locationName = document.getElementById('garageNameInputText').value.trim();
+            if (!locationName) {
+                showToast('Bitte geben Sie einen Namen für die Garage ein.', 'error');
+                return;
+            }
+
+            locationConfigResult = {
+                name: locationName,
+                parkingSmall: Number(document.getElementById('numberParkingSmall').value) || 0,
+                parkingMiddle: Number(document.getElementById('numberParkingMedium').value) || 0,
+                parkingBig: Number(document.getElementById('numberParkingBig').value) || 0
+            }
+
+            locationConfigInput.remove();
+            resolve(locationConfigResult);
+        })
     })
 }
 
