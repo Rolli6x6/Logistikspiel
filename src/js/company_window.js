@@ -37,7 +37,6 @@ function selectLocation () {
         if (!locationConfigResult) return;
         else {
             map.off('click')
-            console.log(locationConfigResult)
             gameData.ownedLocations.push({
                 id: crypto.randomUUID(),
                 name: locationConfigResult.name,
@@ -49,6 +48,7 @@ function selectLocation () {
             changeUi.cancelBtn.remove();
             changeUi.window.classList.remove('hidden');
             changeUi.uipanel.classList.remove('hidden');
+            L.marker(selectedLocation).addTo(map);
             console.log(gameData.ownedLocations)
         }
     })
