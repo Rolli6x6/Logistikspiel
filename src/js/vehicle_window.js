@@ -2,41 +2,111 @@
 // Fahrzeugfenster: Tabs für Garage und Händler und klare Trennung von Logik, Rendering und Aktionen.
 
 import { gameData } from './player_data.js';
-import { findMarketVehicle, Kategorien, listMarketByCategory, vehicleDataConfig } from './vehicle_data.js';
+import { findMarketVehicle, Kategorien, listMarketByCategory, marketVehicles, vehicleDataConfig } from './vehicle_data.js';
 import { updateMoneyDisplay, showToast } from './UI.js';
 
 const categoryOrder = new Map(Kategorien.map((category, index) => [category, index]));
 
-function buildVehicleSpecGroups(vehicle) {
-    const groups = {};
+function buildVehicleSpecGroups(vehicle, mode) {
+	const groups = {};
 
-    for (const [key, config] of Object.entries(vehicleDataConfig)) {
+	for (const [key, config] of Object.entries(vehicleDataConfig)) {
 
-        const value = vehicle[key];
+		const value = config.source
+			? vehicle[config.source]
+			: vehicle[key];
 
-        if (value === undefined)
-            continue;
+		if (value === undefined)
+			continue;
 
-        if (!groups[config.group])
-            groups[config.group] = [];
+		if (!groups[config.group])
+			groups[config.group] = { items: []};
 
-        groups[config.group].push(
-            config.unit
-                ? `${config.label}: ${value} ${config.unit}`
-                : `${config.label}: ${value}`
-        );
-    }
+		if (mode === 'overview') {
+			if (config.selectable === true) 
+				continue; 
 
-    return Object.entries(groups).map(([title, items]) => ({
-        title,
-        items
-    }));
+			if (Array.isArray(value)) {
+				const range = getRange(value, config.property ?? key);
+
+				if (range.min === range.max) {
+					groups[config.group].items.push(
+						`${config.label}: ${range.min} ${config.unit ? ' ' + config.unit : ''}`
+					);
+				}
+				else {
+					groups[config.group].items.push(
+						`${config.label}: ${range.min} bis ${range.max}${config.unit ? ' ' + config.unit : ''}`
+					);
+				}
+			}
+			else {
+				groups[config.group].items.push(
+					config.unit
+						? `${config.label}: ${value} ${config.unit}`
+						: `${config.label}: ${value}`
+				);
+			}
+		}
+		if (mode === 'configuration') {
+			if (!config.source && !config.selectable) {
+				groups[config.group].items.push({
+					type: 'value',
+					text: config.unit
+						? `${config.label}: ${value} ${config.unit}`
+						: `${config.label}: ${value}`
+				});
+			}
+
+			if (config.selectable === true && Array.isArray(value)) {
+				const options = value.map((option) => {
+					const details = [];
+					for (const [property, propConfig] of Object.entries(vehicleDataConfig)) {
+						const sources = Array.isArray(propConfig.source)
+							? propConfig.source
+							: [propConfig.source];
+
+						if (!sources.includes(key))
+							continue;
+
+						if (option[property] === undefined)
+							continue;
+
+						details.push(
+							propConfig.unit
+								? `${propConfig.label}: ${option[property]} ${propConfig.unit}`
+								: `${propConfig.label}: ${option[property]}`
+						);
+					}
+					return {
+						id: option.id,
+						price: option.preis ?? 0,
+						name: option.name ?? option.id,
+						details
+					};
+				});
+				groups[config.group].items.push({
+					type: 'selection',
+					label: config.label,
+					key,
+					options
+				}
+				);
+			}
+		}
+	}
+
+	return Object.entries(groups).map(([title, group]) => ({
+		title,
+		items: group.items,
+	}));
 }
 
-function renderSpecGroups(vehicle) {
-	const groups = buildVehicleSpecGroups(vehicle);
+function renderSpecGroups(vehicle, mode) {
+	const groups = buildVehicleSpecGroups(vehicle, mode);
 	if (!groups.length) return '';
 
+	if (mode === 'overview') {
 	return `
 		<div class="specs">
 			${groups
@@ -49,6 +119,47 @@ function renderSpecGroups(vehicle) {
 				)
 				.join('')}
 		</div>`;
+	}
+
+	if (mode === 'configuration') {
+		return `
+			${groups.map((group) => `
+			<tr> 
+				<td> ${group.title} </td>
+				<td> ${group.items.map((item) => {
+					if (item.type === 'value') {
+						return `<div>${item.text}</div>`;
+					}
+					if (item.type === 'selection') {
+						return `
+							<div>
+								<strong>${item.label}</strong><br>
+								${item.options.map((option) => `
+									<label class="vehicle-option">
+										<input type="radio" name="${item.key}" value="${option.id}" price="${option.price}">
+										Variante: ${option.name}<br>
+										${option.details.length
+											? `${option.details.join('<br>')}`
+											: ''}
+									</label>
+								`).join('')}
+							</div>
+						`;
+					}
+				}).join('')}</td>
+			</tr>
+			`
+			).join('')}
+		`
+	}
+}
+
+function getRange(array, property) {
+	const values = array.map(item => item[property]);
+	return {
+		min: Math.min(...values),
+		max: Math.max(...values)
+	}
 }
 
 function sortMarketVehicles(list) {
@@ -70,7 +181,7 @@ function createOwnedVehicleItem(vehicle) {
 		<div class="owned-item">
 			<div class="owned-info">
 				<strong>${vehicle.name}</strong>
-				${renderSpecGroups(vehicle)}
+				${renderSpecGroups(vehicle, 'overview')}
 			</div>
 			<div>
 				<button class="sell-btn" data-owned-i-d="${vehicle.ownedID}">Verkaufen</button>
@@ -86,7 +197,7 @@ function createMarketItem(vehicle) {
 		<div class="market-main">
 			<div class="market-info">
 				<strong>${vehicle.name}</strong> 
-				${renderSpecGroups(vehicle)}
+				${renderSpecGroups(vehicle, 'overview')}
 			</div>
 			<div>
 				<button class="buy-btn" data-id="${vehicle.id}">Kaufen</button>
@@ -96,12 +207,13 @@ function createMarketItem(vehicle) {
 }
 
 function sellOwnedVehicle(vehicle, btnGarage) {
-	gameData.money += vehicle.preis;
+	console.log(vehicle);
+	gameData.money += vehicle.kaufpreis;
 	gameData.ownedVehicles = gameData.ownedVehicles.filter((v) => v.ownedID !== vehicle.ownedID);
 
 	updateMoneyDisplay();
 	gameData.income.push({ 
-		wert: vehicle.preis, 
+		wert: vehicle.kaufpreis, 
 		beschreibung: `Verkauf: ${vehicle.name}`,
 		datum: dateValue.textContent || '',
 		uhrzeit: timeValue.textContent || ''
@@ -110,37 +222,166 @@ function sellOwnedVehicle(vehicle, btnGarage) {
 	btnGarage.click();
 }
 
-function purchaseMarketVehicle(vehicle, btnGarage) {
-	if (gameData.money < vehicle.preis) {
-		showToast('Nicht genug Geld', 'error');
-		return;
-	}
-
-	gameData.money -= vehicle.preis;
-	if (!gameData.ownedVehicles) gameData.ownedVehicles = [];
-	gameData.ownedVehicles.push(createOwnedVehicle(vehicle));
-
-	updateMoneyDisplay();
-	gameData.expenses.push({ 
-		wert: vehicle.preis, 
-		beschreibung: `Kauf: ${vehicle.name}`,
-		datum: dateValue.textContent || '',
-		uhrzeit: timeValue.textContent || ''
-	});
-	showToast(`Du hast ${vehicle.name} gekauft.`, 'success');
-    console.log(gameData.expenses);
-	btnGarage.click();
+async function purchaseMarketVehicle(vehicle, btnGarage) {
+	const window = document.querySelector('.app-modal');
+	window.classList.add('hidden');
+	try {
+    	const vehicleConfigResult = await renderVehicleConfigWindow(vehicle);
+    	if (!vehicleConfigResult) {
+      		window.classList.remove("hidden");
+		    return;
+    	}
+    	gameData.money -= vehicleConfigResult.configPrice;
+    	updateMoneyDisplay();
+		gameData.expenses.push({
+			wert: vehicleConfigResult.configPrice,
+			beschreibung: `Kauf: ${vehicle.name}`,
+			datum: dateValue.textContent || '',
+			uhrzeit: timeValue.textContent || ''
+		});
+		showToast(`Du hast ${vehicle.name} gekauft.`, 'success');
+    	gameData.ownedVehicles.push(
+      		createOwnedVehicle(vehicle, vehicleConfigResult),
+    	);
+		btnGarage.click();
+    	window.classList.remove("hidden");
+  	} catch (error) {
+    	window.classList.remove("hidden");
+  	}
 }
 
-function createOwnedVehicle(vehicle) {
+function createOwnedVehicle(vehicle, configResult) {
+    const ownedVehicle = structuredClone(vehicle);
+
+    for (const [key, config] of Object.entries(vehicleDataConfig)) {
+        if (!config.selectable)
+            continue;
+
+        const options = vehicle[key];
+        const selectedId = configResult[key];
+
+        if (!Array.isArray(options) || !selectedId)
+            continue;
+
+        const selectedOption = options.find(
+            option => option.id === selectedId
+        );
+
+        if (selectedOption) {
+            ownedVehicle[key] = [structuredClone(selectedOption)];
+        }
+    }
+
     return {
+        ...ownedVehicle,
         ownedID: crypto.randomUUID(),
-        ...vehicle,
+        kennzeichen: configResult.kennzeichen,
         kilometerstand: 0,
-        kaufdatum: dateValue.textContent || ''
+        kaufdatum: dateValue.textContent || '',
+		kaufpreis: configResult.configPrice
     };
 }
 
+function renderVehicleConfigWindow(vehicle) {
+	return new Promise((resolve, reject) => {
+		const vehicleConfigInput = document.createElement('div');
+		vehicleConfigInput.className = 'app-modal';
+		vehicleConfigInput.innerHTML = `
+			<div class="modal-overlay"></div>
+        	<div class="modal-window">
+            	<header>
+                	<h3>Fahrzeug konfigurieren</h3>
+					<div id="vehicleConfigPriceDisplay"> Preis: ${vehicle.basispreis.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} </div>
+	                <button class="modal-close" aria-label="Schließen">&times;</button>
+    	        </header>
+            	<div class="modal-body">
+					<table class="vehicleConfigTable" border="2px">
+						<tr>
+							<th width="20%"> Modell: </th>
+							<th width="80%"> ${vehicle.name} </th>
+						</tr>
+						${renderSpecGroups(vehicle, 'configuration')}
+						<tr>
+							<td> Kennzeichen: </td>
+							<td> <input type="text" id="kennzeichenInput" placeholder="Kennzeichen eingeben"> </td>
+						</tr>
+					</table>
+					<button class="buy-btn">Kaufen</button><br><br>
+				</div>
+			</div>
+		`;
+		document.body.appendChild(vehicleConfigInput);
+
+		vehicleConfigInput.querySelector('.modal-close').addEventListener('click', () => {
+			vehicleConfigInput.remove();
+			const vehicleConfigResult = null;
+			reject(vehicleConfigResult);
+		});
+
+		vehicleConfigInput.querySelectorAll('input[type="radio"]').forEach((radio) => {
+			radio.addEventListener('click', () => {
+				const configPrice = calculateConfigPrice(vehicle, vehicleConfigInput);
+				updatevehicleConfigPriceDisplay(configPrice);
+			});
+		});
+
+		vehicleConfigInput.querySelector('.buy-btn').onclick = () => {
+			const radioGroups = new Set(
+				[...vehicleConfigInput.querySelectorAll('input[type="radio"]')]
+					.map(radio => radio.name)
+			);
+
+			for (const groupName of radioGroups) {
+				const selectedRadio = vehicleConfigInput.querySelector(
+					`input[type="radio"][name="${groupName}"]:checked`
+				);
+
+				if (!selectedRadio) {
+					showToast(
+						'Bitte wähle eine Variante für alle Optionen aus.',
+						'error'
+					);
+					return;
+				}
+			}
+
+			const selectedOptions = Object.fromEntries(
+				[...vehicleConfigInput.querySelectorAll('input[type="radio"]:checked')]
+					.map((radio) => [radio.name, radio.value])
+			);
+
+			const vehicleConfigResult = {
+				...selectedOptions,
+				kennzeichen: vehicleConfigInput.querySelector('#kennzeichenInput').value
+			};
+			const configPrice = calculateConfigPrice(vehicle, vehicleConfigInput);
+			if (gameData.money < configPrice) {
+				showToast('Du hast nicht genug Geld, um dieses Fahrzeug zu kaufen.', 'error');
+				return;
+			}
+			vehicleConfigInput.remove();
+			resolve({
+				...vehicleConfigResult,
+				configPrice
+			});
+		};
+	})
+}
+
+function calculateConfigPrice(vehicle, vehicleConfigInput) {
+  const selectedPrices = [...vehicleConfigInput.querySelectorAll('input[type="radio"]:checked')]
+    .map(radio => Number.parseFloat(radio.getAttribute('price') ?? 0));
+
+  const configPrice = selectedPrices.reduce((sum, price) => sum + price, 0)
+    + Number(vehicle.basispreis || 0);
+
+  return configPrice;
+}
+
+function updatevehicleConfigPriceDisplay(configPrice) {
+	const priceDisplay = document.getElementById('vehicleConfigPriceDisplay');
+	priceDisplay.textContent = `Preis: ${configPrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`;
+}
 function findOwnedVehicle(ownedID) {
 	return (gameData.ownedVehicles || []).find(v => v.ownedID === ownedID) || null;
 }

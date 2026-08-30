@@ -354,7 +354,7 @@ body {
 .market-main { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; }
 .market-info { flex: 1 1 0; min-width: 0; }
 
-.market-item .buy-btn {
+.buy-btn {
   padding: 0.35rem 0.6rem;
   border-radius: 6px;
   border: none;
@@ -367,6 +367,11 @@ body {
 .spec-group { background: rgba(15,23,42,0.04); padding:0.5rem 0.65rem; border-radius:10px; }
 .spec-group strong { display:block; margin-bottom:0.25rem; font-size:0.92rem; color: #0f172a; }
 .spec-group div { line-height:1.4; }
+
+.vehicle-option { 
+  display:block; 
+  border: #0f172a 1px solid;
+}
 
 @media (min-width: 760px) {
   .specs { grid-template-columns: repeat(3, minmax(220px, 1fr)); }
