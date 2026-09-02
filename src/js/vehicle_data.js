@@ -84,7 +84,63 @@ export const marketVehicles = [
         preis: 6000
       }
     ]
-
+  },
+  {
+    id: 'Scania S',
+    name: 'Scania S-Serie',
+    marke: 'Scania',
+    modell: 'S-Serie',
+    kategorie: 'Sattelzugmaschine',
+    kompatibel: 'Auflieger',
+    parkplatz: 'groß',
+    baujahr: 2016,
+    basispreis: 120000,
+    motor: [
+      {
+        id: 'V8 590',
+        name: 'V8 590',
+        zylinder: 8,
+        hubraum_ccm: 16500,
+        leistung_kw: 434,
+        drehmoment_nm: 3050,
+        verbrauch_l_per_100km: 25,
+        preis: 0
+      },
+      {
+        id: 'V8 660',
+        name: 'V8 660',
+        zylinder: 8,
+        hubraum_ccm: 16500,
+        leistung_kw: 485,
+        drehmoment_nm: 3300,
+        verbrauch_l_per_100km: 28,
+        preis: 0
+      },
+      {
+        id: 'V8 770',
+        name: 'V8 770',
+        zylinder: 8,
+        hubraum_ccm: 16500,
+        leistung_kw: 567,
+        drehmoment_nm: 3700,
+        verbrauch_l_per_100km: 30,
+        preis: 0
+      },
+    ],
+    achskonfiguration: [
+      {
+        id: '4x2',
+        name: '4x2',
+        anzahl_achsen: 2,
+        angetriebene_achsen: 1,
+      }, 
+      {
+        id: '6x2',
+        name: '6x2',
+        anzahl_achsen: 3,
+        angetriebene_achsen: 1,
+      },
+    ]
   },
 ];
 
@@ -107,10 +163,12 @@ export const vehicleDataConfig = {
     verbrauch_l_per_100km: { label: 'Verbrauch', unit: 'l/100km', group: 'Technische Daten' },
     tank: { label: 'Tankkapazität', unit: 'l', group: 'Technische Daten' },
     karosserie: { label: 'Karosserie', group: 'Lademöglichkeiten', selectable: true },
+    achskonfiguration: { label: 'Achskonfiguration', group: 'Lademöglichkeiten', selectable: true },
     ldm: { label: 'Lademeter', unit: 'm', group: 'Lademöglichkeiten', source: 'karosserie' },
     ladevolumen: { label: 'Ladevolum', unit: 'm³', group: 'Lademöglichkeiten', source: 'karosserie' },
     gewicht_kg: { label: 'Gewicht', unit: 'kg', group: 'Lademöglichkeiten' },
-    anzahl_achsen: { label: 'Anzahl Achsen', unit: '', group: 'Lademöglichkeiten' },
+    anzahl_achsen: { label: 'Anzahl Achsen', unit: '', group: 'Lademöglichkeiten', source: 'achskonfiguration' },
+    angetriebene_achsen: { label: 'Angetriebene Achsen', unit: '', group: 'Lademöglichkeiten', source: 'achskonfiguration' },
     maxZuladung: { label: 'max. Zuladung', unit: 'kg', group: 'Lademöglichkeiten' },
     maxGewicht: { label: 'max. Gewicht', unit: 'kg', group: 'Lademöglichkeiten', source: 'karosserie' },
     kilometerstand: { label: 'Kilometerstand', unit: 'km', group: 'Status' },

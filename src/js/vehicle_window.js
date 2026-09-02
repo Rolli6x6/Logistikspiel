@@ -207,7 +207,6 @@ function createMarketItem(vehicle) {
 }
 
 function sellOwnedVehicle(vehicle, btnGarage) {
-	console.log(vehicle);
 	gameData.money += vehicle.kaufpreis;
 	gameData.ownedVehicles = gameData.ownedVehicles.filter((v) => v.ownedID !== vehicle.ownedID);
 
