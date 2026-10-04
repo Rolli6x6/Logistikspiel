@@ -37,19 +37,33 @@ function selectLocation () {
         if (!locationConfigResult) return;
         else {
             map.off('click')
+            gameData.money -= locationConfigResult.price;
+            updateMoneyDisplay();
+            gameData.expenses.push({
+                wert: locationConfigResult.price,
+                beschreibung: `Kauf der Garage "${locationConfigResult.name}"`,
+                datum: dateValue.textContent || '',
+			    uhrzeit: timeValue.textContent || ''
+            });
             gameData.ownedLocations.push({
                 id: crypto.randomUUID(),
                 name: locationConfigResult.name,
                 position: {
                     lat: selectedLocation.lat,
                     lng: selectedLocation.lng
-                }
+                }, 
+                parkingSmall: locationConfigResult.parkingSmall,
+                parkingSmallUsed: 0,
+                parkingMiddle: locationConfigResult.parkingMiddle,
+                parkingMiddleUsed: 0,
+                parkingBig: locationConfigResult.parkingBig,
+                parkingBigUsed: 0
             });
             changeUi.cancelBtn.remove();
             changeUi.window.classList.remove('hidden');
             changeUi.uipanel.classList.remove('hidden');
             L.marker(selectedLocation).addTo(map);
-            console.log(gameData.ownedLocations)
+            renderGarageLocations();
         }
     })
 }
@@ -59,15 +73,17 @@ function renderLocationConfigWindow() {
         const locationConfigInput = document.createElement('div');
         locationConfigInput.className = 'app-modal';
         locationConfigInput.id = 'garageNameInputId';
+        let locationPrice = 100000;
         locationConfigInput.innerHTML = `
         <div class="modal-overlay"></div>
         <div class="modal-window">
             <header>
                 <h3>Standort anpassen</h3>
+                <div id="locationConfigPriceDisplay"> Preis: ${locationPrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} </div>
                 <button class="modal-close" aria-label="Schließen">&times;</button>
             </header>
             <div class="modal-body">
-                <p> Hier kannst du deinen Standort konfigurieren. Du kannst ihn später jederzeit erweitern. </p>
+                <p> Hier kannst du deinen Standort konfigurieren. Du kannst ihn später jederzeit erweitern. Grundstückspreis: 100.000€</p>
                 <table>
                     <tr>
                         <td width="40%">Name: </td>
@@ -75,15 +91,15 @@ function renderLocationConfigWindow() {
                     </tr>
                     <tr>
                         <td>Anzahl Parkplätze (klein): </td>
-                        <td><input type="number" id="numberParkingSmall" min="0" max="100" step="1" placeholder="Parkplätze (klein)"></td>
+                        <td><input type="number" id="numberParkingSmall" min="0" max="100" step="1" placeholder="Parkplätze (klein)"> x10.000€</td>
                     </tr>
                     <tr>
                         <td>Anzahl Parkplätze (mittel): </td>
-                        <td><input type="number" id="numberParkingMedium" min="0" max="100" step="1" placeholder="Parkplätze (mittel)"></td>
+                        <td><input type="number" id="numberParkingMedium" min="0" max="100" step="1" placeholder="Parkplätze (mittel)"> x12.500€</td>
                     </tr>
                     <tr>
                         <td>Anzahl Parkplätze (groß): </td>
-                        <td><input type="number" id="numberParkingBig" min="0" max="100" step="1" placeholder="Parkplätze (groß)"></td>
+                        <td><input type="number" id="numberParkingBig" min="0" max="100" step="1" placeholder="Parkplätze (groß)"> x15.000€</td>
                     </tr>
                 </table>
                 <button id="confirmGarageNameBtn" class="category-btn">Bestätigen</button>
@@ -97,7 +113,22 @@ function renderLocationConfigWindow() {
             resolve(null)
         });
 
+        const parkingInputs = locationConfigInput.querySelectorAll('input[type="number"]');
+        const priceDisplay = locationConfigInput.querySelector('#locationConfigPriceDisplay');
+        const updateLocationPrice = () => {
+            locationPrice = 100000
+                + (Number(locationConfigInput.querySelector('#numberParkingSmall').value) || 0) * 10000
+                + (Number(locationConfigInput.querySelector('#numberParkingMedium').value) || 0) * 12500
+                + (Number(locationConfigInput.querySelector('#numberParkingBig').value) || 0) * 15000;
+            priceDisplay.textContent = `Preis: ${locationPrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`;
+        };
+        parkingInputs.forEach(input => input.addEventListener('input', updateLocationPrice));
+
         document.getElementById('confirmGarageNameBtn').addEventListener('click', () => {
+            if (gameData.money < locationPrice) {
+                showToast('Sie haben nicht genügend Geld, um diese Garage zu kaufen.', 'error');
+                return;
+            }
             let locationConfigResult;
             const locationName = document.getElementById('garageNameInputText').value.trim();
             if (!locationName) {
@@ -109,7 +140,8 @@ function renderLocationConfigWindow() {
                 name: locationName,
                 parkingSmall: Number(document.getElementById('numberParkingSmall').value) || 0,
                 parkingMiddle: Number(document.getElementById('numberParkingMedium').value) || 0,
-                parkingBig: Number(document.getElementById('numberParkingBig').value) || 0
+                parkingBig: Number(document.getElementById('numberParkingBig').value) || 0,
+                price: locationPrice
             }
 
             locationConfigInput.remove();
@@ -126,14 +158,174 @@ function renderGarageLocations() {
             <p>Hier können Sie Ihre Garagenstandorte verwalten und neue Garagen kaufen.</p>
         </div>
         <button id="setGarageLocationBtn" class="category-btn">Garagenstandort setzen</button>
+        <div class="garage-list">
+            <table class="garage-table">
+                <thead>
+                    <tr class="garage-title">
+                        <th>Garagenname</th>
+                        <th>Position</th>
+                        <th>Parkplätze (klein)</th>
+                        <th>Parkplätze (mittel)</th>
+                        <th>Parkplätze (groß)</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${gameData.ownedLocations.length ? gameData.ownedLocations.map(location => `
+                        <tr class="garage-entry">
+                            <td>${location.name}</td>
+                            <td>${location.position.lat.toFixed(5)}, ${location.position.lng.toFixed(5)}</td>
+                            <td>vorhandene Parkplätze: ${location.parkingSmall} <br> davon besetzt: ${location.parkingSmallUsed}</td>
+                            <td>vorhandene Parkplätze: ${location.parkingMiddle} <br> davon besetzt: ${location.parkingMiddleUsed}</td>
+                            <td>vorhandene Parkplätze: ${location.parkingBig} <br> davon besetzt: ${location.parkingBigUsed}</td>
+                            <td><center><button class="location-action-btn" id="${location.id}">Aktion</button></center></td>
+                        </tr>
+                    `).join('') : '<tr><td colspan="6">Keine Garagenstandorte vorhanden. Klicken Sie auf "Garagenstandort setzen", um eine neue Garage zu kaufen.</td></tr>'}
+                </tbody>
+            </table>
+        </div>
     `;
+
+    const garageActionButtons = document.querySelector('.garage-table');
+    garageActionButtons.addEventListener('click', async (event) => {
+        const btn = event.target.closest('.location-action-btn');
+        if (!btn) return;
+        const location = gameData.ownedLocations.find(l => l.id === btn.id);
+        if (!location) {
+            showToast('Garage nicht gefunden', 'error');
+            return;
+        }
+        
+        const garageWindow = document.querySelector('.app-modal');
+        garageWindow.classList.add('hidden');
+
+        const garageActionResult = await renderGarageActionWindow(location);
+
+        garageWindow.classList.remove('hidden');
+
+        if (!garageActionResult) return;
+
+        gameData.money -= garageActionResult.price;
+        updateMoneyDisplay();
+        gameData.expenses.push({
+            wert: garageActionResult.price,
+            beschreibung: `Änderungen an der Garage "${garageActionResult.name}"`,
+            datum: dateValue.textContent || '',
+            uhrzeit: timeValue.textContent || ''
+        });
+        gameData.ownedLocations = gameData.ownedLocations.map(l => {
+            if (l.id === location.id) {
+                return {
+                    ...l,
+                    name: garageActionResult.name,
+                    parkingSmall: garageActionResult.parkingSmall,
+                    parkingMiddle: garageActionResult.parkingMiddle,
+                    parkingBig: garageActionResult.parkingBig
+                };
+            }
+        });
+        renderGarageLocations();
+        showToast(`Änderungen an der Garage "${garageActionResult.name}" erfolgreich durchgeführt!`, 'success');
+    });
+
 
     document.getElementById('setGarageLocationBtn').addEventListener('click', () => {
         selectLocation();
     });
 }
 
+function renderGarageActionWindow(location) {
+    return new Promise((resolve) => {
+        let locationChangePrice = 0;
+        const garageActionWindow = document.createElement('div');
+        garageActionWindow.className = 'app-modal';
+        garageActionWindow.innerHTML = `
+            <div class="modal-overlay"></div>
+            <div class="modal-window">
+                <header>
+                    <h3>Aktionen für Garage: ${location.name}</h3>
+                    <div id="locationActionPriceDisplay"> Preis: ${locationChangePrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} </div>
+                    <button class="modal-close" aria-label="Schließen">&times;</button>
+                </header>
+                <div class="modal-body">
+                    <p> Hier kannst du deinen Standort konfigurieren. Die Abrisskosten betragen 1/2 der Baukosten.</p>
+                    <table>
+                        <tr>
+                            <td width="40%">Name: </td>
+                            <td width="60%"><input type="text" id="garageNameInputText" value="${location.name}" placeholder="Name des Standorts"></td>
+                        </tr>
+                        <tr>
+                            <td>Anzahl Parkplätze (klein): </td>
+                            <td>aktuell ${location.parkingSmallUsed} von ${location.parkingSmall} Parkplätzen belegt <br> neue Anzahl:<input type="number" id="numberParkingSmall" min="${location.parkingSmallUsed}" max="100" step="1" value="${location.parkingSmall}" placeholder="Parkplätze (klein)"> x10.000€</td>
+                        </tr>
+                        <tr>
+                            <td>Anzahl Parkplätze (mittel): </td>
+                            <td>aktuell ${location.parkingMiddleUsed} von ${location.parkingMiddle} Parkplätzen belegt <br> neue Anzahl:<input type="number" id="numberParkingMedium" min="${location.parkingMiddleUsed}" max="100" step="1" value="${location.parkingMiddle}" placeholder="Parkplätze (mittel)"> x12.500€</td>
+                        </tr>
+                        <tr>
+                            <td>Anzahl Parkplätze (groß): </td>
+                            <td>aktuell ${location.parkingBigUsed} von ${location.parkingBig} Parkplätzen belegt <br> neue Anzahl:<input type="number" id="numberParkingBig" min="${location.parkingBigUsed}" max="100" step="1" value="${location.parkingBig}" placeholder="Parkplätze (groß)"> x15.000€</td>
+                        </tr>
+                    </table>
+                    <button id="confirmGarageActionBtn" class="category-btn">Bestätigen</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(garageActionWindow);
+    
+        garageActionWindow.querySelector('.modal-close').addEventListener('click', () => {
+            garageActionWindow.remove();
+            resolve(null);
+        });
+
+        const parkingInputs = garageActionWindow.querySelectorAll('input[type="number"]');
+        const priceDisplay = garageActionWindow.querySelector('#locationActionPriceDisplay');
+        const calculateParkingPrice = (newCount, currentCount, unitPrice) => {
+            const change = newCount - currentCount;
+            return change >= 0 ? change * unitPrice : change * unitPrice / -2;
+        };
+        const updateLocationPrice = () => {
+            locationChangePrice = 0
+                + calculateParkingPrice(Number(garageActionWindow.querySelector('#numberParkingSmall').value) || 0, location.parkingSmall, 10000)
+                + calculateParkingPrice(Number(garageActionWindow.querySelector('#numberParkingMedium').value) || 0, location.parkingMiddle, 12500)
+                + calculateParkingPrice(Number(garageActionWindow.querySelector('#numberParkingBig').value) || 0, location.parkingBig, 15000);
+            priceDisplay.textContent = `Preis: ${locationChangePrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`;
+        };
+        parkingInputs.forEach(input => input.addEventListener('input', updateLocationPrice));
+
+        document.getElementById('confirmGarageActionBtn').addEventListener('click', () => {
+            if (gameData.money < locationChangePrice) {
+                showToast('Sie haben nicht genügend Geld, um diese Änderungen vorzunehmen.', 'error');
+                return;
+            };
+
+            let locationName = document.getElementById('garageNameInputText').value.trim();
+            if (!locationName) {
+                showToast('Bitte geben Sie einen Namen für die Garage ein.', 'error');
+                return;
+            }
+
+            let garageActionResult = {
+                name: locationName,
+                parkingSmall: Number(document.getElementById('numberParkingSmall').value) || 0,
+                parkingMiddle: Number(document.getElementById('numberParkingMedium').value) || 0,
+                parkingBig: Number(document.getElementById('numberParkingBig').value) || 0,
+                price: locationChangePrice
+            }
+            garageActionWindow.remove();
+            resolve(garageActionResult);
+        })
+    })
+}
+
 function renderWarehouseLocations() {
+    const content = document.getElementById('locationContent');
+    content.innerHTML = `
+        <div class="warehouse-info">
+            <h1>Eigene Lager</h1>
+            Lager befinden sich derzeit in der Entwicklung und werden in zukünftigen Updates verfügbar sein.
+        </div>
+    `;
 }
 
 function renderFinancesOverview() {

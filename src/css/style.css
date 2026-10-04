@@ -236,7 +236,7 @@ body {
 .tab-controls {
   padding: 0.45rem 0.65rem;
   border-radius: 6px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  border: 1px solid #2563eb;
   background: #f8fafc;
   color: #0f172a;
   font-weight: 700;
@@ -263,8 +263,8 @@ body {
 .category-btn {
   padding: 0.35rem 0.6rem;
   border-radius: 6px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: #f8fafc;
+  border: 1px solid #2563eb;
+  background: #fff;
   color: #0f172a;
   font-weight: 700;
   cursor: pointer;
@@ -282,24 +282,24 @@ body {
   gap: 0.5rem;
 } 
 
-.finance-table, .loan-table {
+.finance-table, .loan-table, .garage-table {
   padding: 0.5rem;
   width: 100%;
   border: 0px;
   border-collapse: collapse;
 }
 
-.finance-header, .loan-header {
+.finance-header, .loan-header, .garage-header {
   font-size: larger;
 }
 
-.finance-table th, .loan-table th {
+.finance-table th, .loan-table th, .garage-table th {
   padding: 0.5rem;
   border-bottom: 1px solid rgb(0, 0, 0);
   text-align: center;
 }
 
-.finance-table td, .loan-table td {
+.finance-table td, .loan-table td, .garage-table td {
   padding: 0.5rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.5);
 }
@@ -307,7 +307,9 @@ body {
 .finance-table th:not(:last-child),
 .finance-table td:not(:last-child, .finance-summary td),
 .loan-table th:not(:last-child),
-.loan-table td:not(:last-child) {
+.loan-table td:not(:last-child),
+.garage-table th:not(:last-child),
+.garage-table td:not(:last-child) {
   border-right: 1px solid rgb(0, 0, 0);
 }
 
@@ -324,6 +326,16 @@ body {
 .loan-payment-row {
   border-left: 1px solid rgb(0, 0, 0, 0.5);
   border-right: 1px solid rgb(0, 0, 0, 0.5);
+}
+
+.location-action-btn,
+.repay-loan-btn {
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #2563eb;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
 }
 
 .owned-item {
