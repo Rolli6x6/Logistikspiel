@@ -154,6 +154,61 @@ function renderSpecGroups(vehicle, mode) {
 	}
 }
 
+function renderGarageSelection(vehicle) {
+	let ownedLocations = gameData.ownedLocations || [];
+	if (ownedLocations.length === 0) {
+		return 'Du besitzt noch keine Garagen. Bitte kaufe zuerst eine Garage.';
+	}
+	if (vehicle.parkplatz === 'klein') {
+		ownedLocations = ownedLocations.filter(location => location.parkingSmall > 0 && location.parkingSmallUsed < location.parkingSmall);
+		if (ownedLocations.length === 0) {
+			return 'Du hast keine freien kleinen Parkplätze.';
+		}
+		else {
+			return `
+				${ownedLocations.map((location) => `
+					<label>
+						<input type="radio" name="garageSelection" value="${location.id}">
+						${location.name}: ${location.parkingSmall-location.parkingSmallUsed} von ${location.parkingSmall} kleine Parkplätze frei
+					</label>
+				`).join('<br>')}
+			`
+		}
+	}
+	if (vehicle.parkplatz === 'mittel') {
+		ownedLocations = ownedLocations.filter(location => location.parkingMiddle > 0 && location.parkingMiddleUsed < location.parkingMiddle);
+		if (ownedLocations.length === 0) {
+			return 'Du hast keine freien mittleren Parkplätze.';
+		}
+		else {
+			return `
+				${ownedLocations.map((location) => `
+					<label>
+						<input type="radio" name="garageSelection" value="${location.id}">
+						${location.name}: ${location.parkingMiddle-location.parkingMiddleUsed} von ${location.parkingMiddle} mittlere Parkplätze frei
+					</label>
+				`).join('<br>')}
+			`
+		}
+	}
+	if (vehicle.parkplatz === 'groß') {
+		ownedLocations = ownedLocations.filter(location => location.parkingBig > 0 && location.parkingBigUsed < location.parkingBig);
+		if (ownedLocations.length === 0) {
+			return 'Du hast keine freien großen Parkplätze.';
+		}
+		else {
+			return `
+				${ownedLocations.map((location) => `
+					<label>
+						<input type="radio" name="garageSelection" value="${location.id}">
+						${location.name}: ${location.parkingBig-location.parkingBigUsed} von ${location.parkingBig} große Parkplätze frei
+					</label>
+				`).join('<br>')}
+			`
+		}
+	}
+}
+
 function getRange(array, property) {
 	const values = array.map(item => item[property]);
 	return {
@@ -209,6 +264,19 @@ function createMarketItem(vehicle) {
 function sellOwnedVehicle(vehicle, btnGarage) {
 	gameData.money += vehicle.kaufpreis;
 	gameData.ownedVehicles = gameData.ownedVehicles.filter((v) => v.ownedID !== vehicle.ownedID);
+	gameData.ownedLocations.forEach(location => {
+		if (location.id === vehicle.standort) {
+			if (vehicle.parkplatz === 'klein') {
+				location.parkingSmallUsed -= 1;
+			}
+			else if (vehicle.parkplatz === 'mittel') {
+				location.parkingMiddleUsed -= 1;
+			}
+			else if (vehicle.parkplatz === 'groß') {
+				location.parkingBigUsed -= 1;
+			}
+		}
+	});
 
 	updateMoneyDisplay();
 	gameData.income.push({ 
@@ -242,6 +310,22 @@ async function purchaseMarketVehicle(vehicle, btnGarage) {
     	gameData.ownedVehicles.push(
       		createOwnedVehicle(vehicle, vehicleConfigResult),
     	);
+		console.log('Fahrzeug gekauft:', gameData.ownedVehicles);
+		
+		gameData.ownedLocations.forEach(location => {
+			if (location.id === vehicleConfigResult.garageSelection) {
+				if (vehicle.parkplatz === 'klein') {
+					location.parkingSmallUsed += 1;
+				}
+				else if (vehicle.parkplatz === 'mittel') {
+					location.parkingMiddleUsed += 1;
+				}
+				else if (vehicle.parkplatz === 'groß') {
+					location.parkingBigUsed += 1;
+				}
+			}
+		});
+
 		btnGarage.click();
     	window.classList.remove("hidden");
   	} catch (error) {
@@ -275,6 +359,7 @@ function createOwnedVehicle(vehicle, configResult) {
         ...ownedVehicle,
         ownedID: crypto.randomUUID(),
         kennzeichen: configResult.kennzeichen,
+		standort: configResult.garageSelection,
         kilometerstand: 0,
         kaufdatum: dateValue.textContent || '',
 		kaufpreis: configResult.configPrice
@@ -304,6 +389,10 @@ function renderVehicleConfigWindow(vehicle) {
 							<td> Kennzeichen: </td>
 							<td> <input type="text" id="kennzeichenInput" placeholder="Kennzeichen eingeben"> </td>
 						</tr>
+						<tr>
+							<td> Standort: </td>
+							<td> ${renderGarageSelection(vehicle)} </td>
+						</tr>
 					</table>
 					<button class="buy-btn">Kaufen</button><br><br>
 				</div>
@@ -331,17 +420,23 @@ function renderVehicleConfigWindow(vehicle) {
 			);
 
 			for (const groupName of radioGroups) {
-				const selectedRadio = vehicleConfigInput.querySelector(
-					`input[type="radio"][name="${groupName}"]:checked`
-				);
+				const selectedRadio = vehicleConfigInput.querySelector(`input[type="radio"][name="${groupName}"]:checked`);
 
 				if (!selectedRadio) {
-					showToast(
-						'Bitte wähle eine Variante für alle Optionen aus.',
-						'error'
-					);
-					return;
+					if (groupName === 'garageSelection') {
+						showToast('Bitte wähle eine Garage aus, in der das Fahrzeug geparkt werden soll.', 'error');
+						return;
+					}
+					else {
+						showToast('Bitte wähle eine Variante für alle Optionen aus.', 'error');
+						return;
+					}
 				}
+			}
+
+			if (!vehicleConfigInput.querySelector('input[type="radio"][name="garageSelection"]:checked')) {
+				showToast('Bitte wähle eine Garage aus, in der das Fahrzeug geparkt werden soll.', 'error');
+				return;
 			}
 
 			const selectedOptions = Object.fromEntries(
