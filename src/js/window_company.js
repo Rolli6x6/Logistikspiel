@@ -1,4 +1,4 @@
-// company_window.js
+// window_company.js
 // Fenster für Unternehmensinformationen und -aktionen.
 
 import { gameData } from './player_data.js';

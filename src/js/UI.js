@@ -3,8 +3,9 @@
 
 import { gameData } from './player_data.js';
 import { initTime, setSpeed } from './time.js';
-import { attachCompanyWindow } from './company_window.js';
-import { attachVehicleWindow } from './vehicle_window.js';
+import { attachCompanyWindow } from './window_company.js';
+import { attachVehicleWindow } from './window_vehicle.js';
+import { attachContractWindow } from './window_contract.js';
 
 export function updateMoneyDisplay() {
   const moneyElement = document.getElementById('moneyValue');
@@ -69,6 +70,9 @@ export function initializeUI() {
     }
     if (title === 'Firma') {
       attachCompanyWindow(modal);
+    }
+    if (title === 'Aufträge') {
+      attachContractWindow(modal);
     }
   }
 

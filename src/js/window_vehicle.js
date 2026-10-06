@@ -1,4 +1,4 @@
-// vehicle_window.js
+// window_vehicle.js
 // Fahrzeugfenster: Tabs für Garage und Händler und klare Trennung von Logik, Rendering und Aktionen.
 
 import { gameData } from './player_data.js';

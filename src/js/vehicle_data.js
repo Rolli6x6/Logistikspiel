@@ -20,6 +20,7 @@ export const marketVehicles = [
     baujahr: 2024,
     basispreis: 35000,
     tank: 75,
+    vmax_kmh: 160,
     motor: [
       {
         id: 'x11 CDI', 
@@ -95,6 +96,7 @@ export const marketVehicles = [
     parkplatz: 'groß',
     baujahr: 2016,
     basispreis: 120000,
+    vmax_kmh: 90,
     motor: [
       {
         id: 'V8 590',

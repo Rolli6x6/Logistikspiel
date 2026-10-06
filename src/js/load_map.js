@@ -1,4 +1,4 @@
-import { initializeRoute } from './routing.js';
+import { initializeRoute } from './routing alt.js';
 import { gameData } from './player_data.js';
 
 export let map; 
